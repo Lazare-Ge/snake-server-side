@@ -1,5 +1,13 @@
 package org.example.rsocketdemo.logic;
 
-public enum Direction {
-    UP, DOWN, LEFT, RIGHT
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
+@AllArgsConstructor
+public class Direction {
+    private String direction;
 }

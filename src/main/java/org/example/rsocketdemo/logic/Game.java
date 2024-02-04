@@ -1,75 +1,62 @@
 package org.example.rsocketdemo.logic;
 
-
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.util.function.Tuple2;
-import reactor.util.function.Tuples;
 
+import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.UUID;
 
 @RequiredArgsConstructor
-@Getter
 public class Game {
+    @Getter
+    private final UUID id;
+    @Getter
+    private final int dimension;
+    @Getter
+    private final int speed;
+
     private final Board board;
     private final Snake snake;
+    private final Direction direction;
+    private final GameStatus status;
     private final Food food;
-    private final Score score;
-    private final int tickRateMillis;
-
-    @Setter
-    private GameInput input;
-    @Setter
-    private GameStatus status;
-
-    public static Game getDefaultGame(){
-        Board board = new Board(30, 30);
-        Snake snake = new Snake(new LinkedList<>());
-        Food food = new Food();
-        food.setBoard(board);
-        Score score = new Score();
-        Game game = new Game(board, snake, food, score, 300);
-        snake.setGame(game);
-        return game;
+    public GameState state(){
+        return new GameState(new LinkedList<>(snake.getSnake()), new Coordinate(food.getFoodCoordinates().getX(), food.getFoodCoordinates().getY()), status.getStatus());
     }
-
-    public void initGame() {
-        board.initBoard();
-        snake.spawnRandom();
-        snake.setDirection(Direction.RIGHT);
-        food.spawnRandom();
-        setStatus(GameStatus.RUNNING);
-        GameInput initialInput = new GameInput();
-        initialInput.setInputDirection(Direction.DOWN);
-        setInput(initialInput);
-    }
-
     public void changeDirection(String direction){
-        if("up".equals(direction))
-            snake.setDirection(Direction.UP);
-        if("down".equals(direction))
-            snake.setDirection(Direction.DOWN);
-        if("left".equals(direction))
-            snake.setDirection(Direction.LEFT);
-        if("right".equals(direction))
-            snake.setDirection(Direction.RIGHT);
+        this.direction.setDirection(direction);
+    }
+    public Flux<Tuple2<Long, GameState>> start() {
+        return Mono.fromRunnable(() -> {
+                    status.setStatus("running");
+                }).thenMany(Flux.interval(Duration.ofMillis(getSpeed())))
+                .flatMap(tickNum -> Mono.just(tickNum).zipWith(Mono.fromCallable(this::tick)))
+                .takeUntil(tickNumGameState -> tickNumGameState.getT2().getStatus().equals("ended")) ;
+    }
+    private GameState tick(){
+        Coordinate destination = snake.head().next(direction.getDirection());
+        if(board.coordinateOut(destination) || snake.collides(destination)){
+            status.setStatus("ended");
+            return state();
+        }
+        if(snake.head().equals(food.getFoodCoordinates())){
+            snake.eat();
+            List<Coordinate> emptyCoordinates = emptyCoordinates();
+            food.spawnRandom(emptyCoordinates);
+        }
+        snake.move(destination);
+        return state();
     }
 
-    public void tick(){
-        if(status != GameStatus.RUNNING) return;
-        snake.move();
-    }
-    public GameStateUpdate getState(){
-        List<Tuple2<Integer, Integer>> snakePixels = snake.getContained().stream()
-                .map(cell -> Tuples.of(cell.getX(), cell.getY()))
+    private List<Coordinate> emptyCoordinates(){
+        return board.getBoardAsCoordinateStream()
+                .filter(coordinate -> !snake.getSnake().contains(coordinate))
                 .toList();
-        ;
-        Cell foodCell = this.food.getPosition();
-        Tuple2<Integer, Integer> foodPixel = Tuples.of(foodCell.getX(), foodCell.getY());
-
-        return new GameStateUpdate(snakePixels, foodPixel);
     }
 
 }

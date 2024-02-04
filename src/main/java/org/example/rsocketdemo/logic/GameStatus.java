@@ -1,5 +1,12 @@
 package org.example.rsocketdemo.logic;
 
-public enum GameStatus {
-    RUNNING, PAUSED, ENDED
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
+
+@AllArgsConstructor
+@Getter
+@Setter
+public class GameStatus {
+    String status;
 }

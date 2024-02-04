@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
   entry: {
-    request_stream: './front/request-stream-client-websocket.js',
+    request_stream: './front/game-client.js',
   },
   output: {
     filename: '[name].bundle.js',
